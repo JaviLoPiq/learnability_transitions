@@ -1,1 +1,2 @@
 git rm -r --cached data/
+git rm --cached decomposition_su4.nb
