@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 PARAMS_PER_GATE = 6 # number parameters for general U1 2q gate
 
 import random
-# Function to create 2q gate
-def u1gate(circ,gate_params,q1,q2,debug=False):
+# Function to create 2q gate; see https://arxiv.org/pdf/quant-ph/0308006.pdf
+def u1gate(circ,gate_params,q1,q2,debug=False): 
     """
     inputs: 
         circ = qiskit circuit containing q1,q2
@@ -97,7 +97,7 @@ def generate_u1mrc(L,depth,m_locs,params,initial_charge,debug=False):
     
     return qreg, creg_list, circ
 
-L = 12
+L = 10
 depth = L
 for p_val in range(0,11):
     p = p_val/10.0
@@ -157,4 +157,4 @@ for p_val in range(0,11):
                 ind_measurement += 1    
             print(p, circuit_iter, s)    
             #circ.draw(output='mpl',scale=0.3)
-            np.save("measurement_record_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy".format(L,p,s,number_shots,circuit_iter), measurement_record[:,0:depth-1,:]) # store all measurements except for final measurements 
+            np.save("learnability_transitions_cluster/data/measurement_record_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy".format(L,p,s,number_shots,circuit_iter), measurement_record[:,0:depth-1,:]) # store all measurements except for final measurements 
