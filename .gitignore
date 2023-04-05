@@ -2,3 +2,5 @@ data
 decomposition_su4.nb 
 learnability_transitions_cluster
 plots
+nn_decoders/CNN_decoder_th.ipynb
+nn_decoders/RNN_decoder_th.ipynb 
