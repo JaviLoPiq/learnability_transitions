@@ -106,7 +106,7 @@ def weak_measurement(circ,q,q_a,theta):
     q_a: ancilla qubit
     theta: strength of measurement; theta=\pi/2 is projective measurement; \theta -> 0 no measurement
     To implement exp{-i*theta/2 [1-Z_q]X_qa} = exp{-i*theta X_qa/2} exp{i*theta/2 Z_q*X_qa}
-    """
+    """ 
     # Doing exp{-i*theta X_qa/2}
     circ.rx(theta,q_a)
     ##### Doing exp{i*theta/2 Z_q*X_qa} ########

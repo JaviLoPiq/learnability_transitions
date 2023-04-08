@@ -5,7 +5,7 @@ from tensorflow.keras import layers
 # retrieve data 
 import numpy as np 
 number_shots = 5000 
-L = 10
+L = 14
 depth = L-1 # samples will have depth = L-1 since they exclude very last layer containing final measurements
 num_circuit_realis = 10
 num_meas_rates = 11
