@@ -7,14 +7,13 @@ import pickle
 import time
 import numpy as np
 import scipy.sparse as sparse
-import matplotlib.pyplot as pl
 from itertools import combinations
 
 
-# Function to get the initial state used in the Qiskit simulation
 def initial_state(L,Q,neel_state=True):
-    
-
+    """
+    Initial superposition of states of fixed charge (Hamming weight)
+    """
     state = np.zeros((2,)*L)
     for positions in combinations(range(L), Q):
         p = [0] * L
@@ -26,42 +25,24 @@ def initial_state(L,Q,neel_state=True):
     state = state/np.sum(state)
     return state
 
-    # Redundant code below. I am fixing the initial to uniform superposition of all states compatible with the initial charge Q
-
-    if not neel_state:
-        filename = 'Weak measurements/data/scrambled_states/L='+str(L)+'_T='+str(2*L)+'_Q='+str(Q)
-        with open(filename,'rb') as f:
-            state = pickle.load(f)
-        state = np.abs(np.asarray(state).reshape((2,)*(L+1))[0,:])**2
-        state = np.transpose(state,range(L)[::-1]) # reversing the order of qubits as qiskit has qubit #0 at the right end
-    else:
-        state = np.zeros((2,)*L)
-        confi = [0]*L
-        for x in range(0,Q,1):
-            confi[2*x] = 1
-        state[tuple(confi)] = 1
-    
-    #
-    #
-    return state
-
 
 def transfer(x,T,outcomes,state_Q,log_Z,state_zero,L,debug=False):
-    """_summary_
+    """
+    Apply transfer matrix on qubits x, x+1. 
 
     Args:
-        x (_type_): transfer matrix is applied on qubit x, x+1
-        T (_type_): Transfer matrix
-        outcomes (_type_): measurement outcomes at x, x+1. outcome has 3 possible values, 0: no measurement, 1: measured outcome is 1, -1: measured outcome is 0
-        state_Q (_type_): state of the system
-        log_Z (_type_): list of log of the partition functions in the previous steps
-        state_zero (Boolean): if true then state_Q has zero partition function/weight; the measurement outcomes are compatible with the total charge.
-        L (_type_): system size
+        x (int): Transfer matrix is applied on qubit x, x+1.
+        T (np.array): Transfer matrix.
+        outcomes (tuple): Measurement outcomes at x, x+1. outcome has 3 possible values, 0: no measurement, 1: measured outcome is 1, -1: measured outcome is 0.
+        state_Q (np.array): State of the system.
+        log_Z (list): List of log of the partition functions in the previous steps.
+        state_zero (bool): If true then state_Q has zero partition function/weight; the measurement outcomes are compatible with the total charge.
+        L (int): System size.
         debug (bool, optional): Defaults to False.
 
     Returns:
-        state_Q: transferred state
-        state_zero: if true, the partition function becomes zero
+        state_Q: Transferred state.
+        state_zero: If true, the partition function becomes zero.
     """
     if not state_zero:
         
@@ -102,23 +83,29 @@ def transfer(x,T,outcomes,state_Q,log_Z,state_zero,L,debug=False):
 
 
 def sep_dynamics_2(data,Q,neel_initial_state=True):
-    """_summary_
+    """
+    Compute output success probability P(Q_correct|{m}) based on partition function of SEP.
 
     Args:
-        data (_type_): 2d array of shape (depth,L) holding values of the outcomes
-        Q (_type_): initial charge of the quantum state which was used to generate the outcomes
+        data (np.array): 2d array of shape (depth,L) holding values of the outcomes.
+        Q (int): Initial charge of the quantum state which was used to generate the outcomes.
         neel_initial_state (bool, optional): Defaults to True.
 
     Returns:
-        _type_: _description_
+        p_Q (float): Success probability.
     """
     (depth,L) = data.shape
    
-    
+    """
+    # assuming charge L//2 or L//2 - 1
     Q2 = Q-1
     if Q<L//2:
         Q2 = Q+1
-
+    """
+    # assuming charge L//2 or L//2 + 1 
+    Q2 = Q + 1
+    if Q > L//2:
+        Q2 = Q - 1
     total = 0
     p_success = []
     
@@ -151,9 +138,11 @@ def sep_dynamics_2(data,Q,neel_initial_state=True):
                 state_Q, state_Q_is_zero = transfer(x,T,outcomes,state_Q,log_Z,state_Q_is_zero,L,debug=False)
 
                 state_Q2, state_Q2_is_zero = transfer(x,T,outcomes,state_Q2,log_Z2,state_Q2_is_zero,L)
-                
+                """ 
+                # debug step
                 if state_Q_is_zero and state_Q2_is_zero:
                     print('hurray2',np.sum(state_Q2),np.sum(state_Q))
+                """    
         else:
             for x in range(1,L-1,2):
                 outcomes = (traj[t,x],traj[t,x+1])
@@ -162,10 +151,11 @@ def sep_dynamics_2(data,Q,neel_initial_state=True):
                 state_Q, state_Q_is_zero = transfer(x,T,outcomes,state_Q,log_Z,state_Q_is_zero,L,debug=False)
 
                 state_Q2, state_Q2_is_zero = transfer(x,T,outcomes,state_Q2,log_Z2,state_Q2_is_zero,L)
-
+                """
+                # debug step
                 if state_Q_is_zero and state_Q2_is_zero:
                     print('hurray2',np.sum(state_Q2),np.sum(state_Q))
-                
+                """
 
         # print(t,time.time()-start,total)
         if state_Q_is_zero:              
@@ -184,56 +174,3 @@ def sep_dynamics_2(data,Q,neel_initial_state=True):
         p_Q2 = 1/(1+ratio_p)
     
     return p_Q
-
-
-
-def get_sep_data(Q,L,p,depth_ratio,scrambled):
-    depth = int(L*depth_ratio)
-    p_suc = []
-    seed=2
-    file_dir = 'data/measurement_data_fixed/seed='+str(seed)
-    neel_state = True
-    if scrambled:
-        neel_state = False
-        filename = 'data/measurement_data_fixed_scrambled/seed='+str(seed)
-    
-    filename = file_dir +'/L='+str(L)+'_depth='+str(depth)+'_Q='+str(Q)+'_p=' + str(p)+ '_seed='+str(seed)
-    with open(filename,'rb') as f:
-        data_raw,_,_ = pickle.load(f)
-
-    for data in data_raw:
-        p_suc.extend([sep_dynamics_2(data[0],Q,neel_initial_state=neel_state)]*data[1])
-    return p_suc
-
-"""
-p_list = [0.05,0.1,0.13,0.16,0.2,0.25,0.3,0.4]
-L_list = [6,8,10,12,14]
-p_suc_dic = {}
-scrambled=False
-final_file = 'sep_data/seed=2_fixed'
-if scrambled:
-    final_file = final_file + '_scrambled'
-for L in L_list:
-    print(L)
-    p_suc_dic[L] = {}
-    for p in p_list:
-        p_suc_dic[L][p] = {}
-        for Q in [L//2,L//2-1]:
-            start = time.time()
-            p_suc_dic[L][p][Q] = get_sep_data(Q,L,p,depth_ratio=1,scrambled=scrambled)
-            print(L,p,Q,time.time()-start)
-    with open(final_file,'wb') as f:
-        pickle.dump(p_suc_dic,f)
-"""
-L = 18
-p = 0.4
-number_shots = 5000 
-circuit_iter = 1 
-measurement_record_0 = np.load("learnability_transitions_cluster/data/measurement_record_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy".format(L,p,0,number_shots,circuit_iter))        
-
-accuracy = []
-for i in range(0,4000):
-    proba_success = sep_dynamics_2(measurement_record_0[i,:,:], L//2)
-    accuracy.append(proba_success > 0.5)
-
-print("accuracy ", np.mean(accuracy))

@@ -1,13 +1,13 @@
 import tensorflow as tf
-from tensorflow.keras import layers
-
+from tf.keras import layers
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR) #do not show tensorflow warnings
+import numpy as np 
 
 # retrieve data 
-import numpy as np 
-number_shots = 5000 
-L = 14
+number_shots = 20000 
+L = 18
 depth = L-1 # samples will have depth = L-1 since they exclude very last layer containing final measurements
-num_circuit_realis = 10
+number_circuit_realis = 10
 num_meas_rates = 11
 num_RNN_units = 64
 test_acc_list = []
@@ -15,7 +15,7 @@ for p_val in range(0,num_meas_rates):
     p = p_val/(num_meas_rates-1)
     print('meas_rate', p)
     test_acc_list_fixed_p = []
-    for circuit_iter in range(1,num_circuit_realis+1):
+    for circuit_iter in range(1,number_circuit_realis+1):
         try:
             measurement_record_0 = np.load("learnability_transitions_cluster/data/measurement_record_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy".format(L,p,0,number_shots,circuit_iter))
             measurement_record_1 = np.load("learnability_transitions_cluster/data/measurement_record_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy".format(L,p,1,number_shots,circuit_iter))
@@ -39,26 +39,13 @@ for p_val in range(0,num_meas_rates):
             test_labels = labels[train_data_number_samples:number_samples]
 
             # Define the RNN model
-            """
-            model = tf.keras.Sequential([
-                tf.keras.layers.Input(shape=(depth, L)),
-                tf.keras.layers.LSTM(32), 
-                tf.keras.layers.Dropout(0.2),
-                tf.keras.layers.Dense(1, activation='sigmoid')
-            ])
-            """ 
             model = tf.keras.Sequential() 
             model.add(tf.keras.layers.Input(shape = (depth, L)))
             model.add(tf.keras.layers.LSTM(units = num_RNN_units))
-            #model.add(tf.keras.layers.Dropout(0.2))
-            #model.add(tf.keras.layers.LSTM(32))
-            #model.add(tf.keras.layers.Dropout(0.2))
-            #model.add(tf.keras.layers.LSTM(units = 50, return_sequences = True))
-            #model.add(tf.keras.layers.Dropout(0.2))
             model.add(tf.keras.layers.Dense(1, activation = 'sigmoid'))
+
             # Compile the model with binary crossentropy loss and Adam optimizer
             model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-            print(np.shape(train_data), np.shape(train_labels))
             # Train the model
             model.fit(train_data, train_labels, epochs=10, batch_size=32) 
 
@@ -67,14 +54,10 @@ for p_val in range(0,num_meas_rates):
             print('circuit_reali', circuit_iter, 'Test accuracy:', test_acc)
             #model.summary()
             test_acc_list_fixed_p.append(test_acc)
-            #test_acc_arr[circuit_iter-1,p_val] = test_acc    
+            #test_acc_arr[circuit_iter-1,p_val] = test_acc
         except:
             print(" ignore circuit iter ", circuit_iter)  
     print(" number of circuit realis ", len(test_acc_list))  
-    test_acc_list.append(test_acc_list_fixed_p)  
-    #test_acc_mean[p_val] = np.mean(test_acc_list)
-    #test_acc_var[p_val] = np.var(test_acc_list)   
+    test_acc_list.append(test_acc_list_fixed_p)   
 
-#print("average accuracy", np.mean(test_acc_list))
 np.save("plots/test_accuracy_RNN_LSTM_{}_L_{}_numbershots_{}.npy".format(num_RNN_units,L,number_shots), test_acc_list) # store all measurements except for final measurements 
-#np.save("plots/test_accuracy_var_RNN_LSTM_{}_L_{}_numbershots_{}.npy".format(num_RNN_units,L,number_shots), test_acc_var) # store all measurements except for final measurements 

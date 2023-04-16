@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import layers
+import numpy as np 
 
 # Define the CNN model
 def create_model(input_shape):
@@ -22,7 +23,6 @@ def create_model(input_shape):
 
 
 # retrieve data 
-import numpy as np 
 number_shots = 1000 
 L = 8
 depth = L-1 # samples will have depth = L-1 since they exclude very last layer containing final measurements
