@@ -1,16 +1,16 @@
 import numpy as np
 import qiskit as qk
-from U1MRC import U1MRC
+import sys
 import h5py
+from U1MRC import U1MRC
 import pickle
 
+L = 10
+depth = L
+number_shots = 2000
+p = 1.0
+circuit_iter = int(sys.argv[1])
 PARAMS_PER_GATE = 6
-L = 10 # number of qubits
-depth = L 
-number_shots = 2000 # number of samples collected
-save_state = True # save initial state if True
-circuit_iter = 1
-p = 0.3
 
 # Random parts
 # measurement locations
@@ -32,14 +32,13 @@ for s in range(0,2):
     #quantum_dynamics_2(Q,L,p,depth_ratio=depth_ratio,scrambling_type=scrambling_type,is_noisy=is_noisy,decoding_protocol=decoding_protocol)
     u1mrc = U1MRC(number_qubits=L, depth=depth, measurement_locs=m_locs, params=param_list, initial_charge=Q, debug=False)
     circ, U_list = u1mrc.generate_u1mrc(measurement_rate=p, reali=circuit_iter, save_state=True, save_unitaries=True)
-    if s == 0: # need only save unitaries for one of the charges
-        np.save('data/unitaries_L_{}_p_{}_iter_{}.npy'.format(L, p, circuit_iter), np.array(U_list, dtype=object))
+    np.save('data/unitaries_L_{}_p_{}_Q_{}_iter_{}.npy'.format(L, p, s, circuit_iter), np.array(U_list, dtype=object))
     backend = qk.Aer.get_backend('qasm_simulator')
     job = qk.execute(circ, backend, shots=number_shots)
     # retrieve measurement outcomes as configurations of \pm 1 if measurement outcome 1/0, and 0 if no measurement applied
     # to do so we need the measurement outcomes from get_counts + measurement locations (to distinguish 0 from no measurement)
     measurement_outcomes = job.result().get_counts(circ)
     # Save the dictionary to a file
-    with open('data/measurement_record_dict_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy'.format(L,p,Q,number_shots,circuit_iter), 'wb') as f:
+    with open('data/measurement_record_dict_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy'.format(L,p,s,number_shots,circuit_iter), 'wb') as f:
         pickle.dump(dict(measurement_outcomes), f)      
     #np.save("data/measurement_record_dict_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy".format(L,p,s,number_shots,circuit_iter), dict(measurement_outcomes)) # store all measurements except for final measurements 

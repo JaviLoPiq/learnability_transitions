@@ -10,7 +10,7 @@ import scipy.sparse as sparse
 from itertools import combinations
 
 
-def initial_state(L,Q,neel_state=True):
+def initial_state(L,Q):
     """
     Initial superposition of states of fixed charge (Hamming weight)
     """
@@ -82,12 +82,12 @@ def transfer(x,T,outcomes,state_Q,log_Z,state_zero,L,debug=False):
     return state_Q, state_zero
 
 
-def sep_dynamics_2(data,Q,neel_initial_state=True):
+def sep_dynamics_2(data,Q):
     """
     Compute output success probability P(Q_correct|{m}) based on partition function of SEP.
 
     Args:
-        data (np.array): 2d array of shape (depth,L) holding values of the outcomes.
+        data (np.array): 2d array of shape (depth-1,L) holding values of the outcomes.
         Q (int): Initial charge of the quantum state which was used to generate the outcomes.
         neel_initial_state (bool, optional): Defaults to True.
 
@@ -109,8 +109,8 @@ def sep_dynamics_2(data,Q,neel_initial_state=True):
     total = 0
     p_success = []
     
-    initial_state_Q = initial_state(L,Q,neel_state=neel_initial_state)
-    initial_state_Q2 = initial_state(L,Q2,neel_state=neel_initial_state)
+    initial_state_Q = initial_state(L,Q)
+    initial_state_Q2 = initial_state(L,Q2)
 
     N=1
     traj = data

@@ -108,7 +108,7 @@ def sep_dynamics_2(data,Q,theta,neel_initial_state=True, decoding_protocol=0):
 
     """
     input:
-        - data (_type_): 2d array of shape (depth,L) holding values of the outcomes
+        - data (_type_): 2d array of shape (depth-1,L) holding values of the outcomes
         - Q (_type_): initial charge of the quantum state which was used to generate the outcomes
         - neel_initial_state (bool, optional): Defaults to True. This argument is redundant now!
         - decoding_protocol

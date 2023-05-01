@@ -1,5 +1,6 @@
 import numpy as np
 import qiskit as qk
+import matplotlib.pyplot as plt
 import random
 import pickle
 import h5py
@@ -54,33 +55,6 @@ def unitary_gate_from_params(gate_params):
     decimals = 10
     return np.array(job.result().get_unitary(circ,decimals))
 
-def dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, s):
-    m_locs = np.load('learnability_transitions_cluster/data/measurement_locs_L_{}_p_{}_iter_{}.npy'.format(L, p, circuit_iter), allow_pickle=True)
-    # pickle for dict data type
-    with open('learnability_transitions_cluster/data/measurement_record_dict_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy'.format(L,p,s,number_shots,circuit_iter), 'rb') as f:
-        measurement_outcomes_dict = pickle.load(f)
-    measurement_outcomes = [key for key, value in measurement_outcomes_dict.items() for i in range(value)] # list of measurement outcomes, including repeated
-    measurement_record = np.zeros((number_shots,depth,L))
-    len_measurements = depth*L+(depth-1) # length of each measurement record when stored as keys 
-    ind_measurement = 0
-    for measurement in measurement_outcomes: # measurement record as keys
-        ind_qubit = 0 
-        ind_layer = 0
-        for i in range(len_measurements): 
-            if ind_qubit != L: 
-                if (i < (L+1)*(depth-1)): # read bitstrings backwards (left most ones correspond to last layer)
-                    if m_locs[ind_layer,ind_qubit]:
-                        measurement_record[ind_measurement,ind_layer,ind_qubit] = int(2*(int(measurement[len_measurements-i-1])-1/2)) # measurement outcome \pm 1 
-                    else:
-                        measurement_record[ind_measurement,ind_layer,ind_qubit] = 0 # measurement records only on first depth-1 layers
-                else: 
-                    measurement_record[ind_measurement,ind_layer,ind_qubit] = int(2*(int(measurement[len_measurements-i-1])-1/2)) # measurement outcome \pm 1 
-                ind_qubit += 1
-            else: 
-                ind_qubit -= L
-                ind_layer += 1
-        ind_measurement += 1   
-    return measurement_record[:,0:depth-1,:] # return all but last layer, which contains measurements of all qubits
 
 class U1MRC(object):
     def __init__(self, number_qubits, depth, measurement_locs, params, initial_charge, debug = False):

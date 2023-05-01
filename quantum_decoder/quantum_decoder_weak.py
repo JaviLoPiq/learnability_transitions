@@ -1,8 +1,11 @@
 import time
 import numpy as np
 import pickle
-import circuit_numpy_utils
 from itertools import combinations
+import qiskit as qk
+import sys
+sys.path.insert(1, '/Users/javier/Dropbox/Projects/measurement transitions/learnability_transitions') # TODO: import all files needed
+from U1MRC import unitary_gate_from_params, U1MRC
 
 def initial_state(L):
     state = np.zeros((2,)*L)
@@ -35,7 +38,7 @@ def unitary_measurement(x,y,U,outcomes,state_Q,log_Z,state_zero,L,theta,do_measu
     """
 
     if not state_zero:
-              
+
         state_Q = np.swapaxes(state_Q,y,(x+1)%L) # moving y-axis to the right of the x-axis
 
         if x%2 == 1:
@@ -52,9 +55,9 @@ def unitary_measurement(x,y,U,outcomes,state_Q,log_Z,state_zero,L,theta,do_measu
             return state_Q, state_zero
 
         if outcomes[0] == 1:
-            state_Q[(0,1),:] = 0
+            state_Q[(0,1),:] = 0 #|00><01|
             state_Q[(2,3),:] = -1j*np.sin(theta) * state_Q[(2,3),:]
-        elif outcomes[0] == -1:
+        elif outcomes[0] == -1: #|10><11|
             state_Q[(2,3),:] = np.cos(theta) *state_Q[(2,3),:]
 
         if outcomes[1] == 1:
@@ -62,7 +65,7 @@ def unitary_measurement(x,y,U,outcomes,state_Q,log_Z,state_zero,L,theta,do_measu
             state_Q[(1,3),:] = -1j * np.sin(theta) * state_Q[(1,3),:]
         elif outcomes[1] == -1:
             state_Q[(1,3),:] = np.cos(theta) *state_Q[(1,3),:]
-        
+
         state_Q = np.moveaxis(state_Q,0,x//2)
         state_Q = state_Q.reshape((2,)*L)
         if x%2 == 1:
@@ -80,7 +83,7 @@ def unitary_measurement(x,y,U,outcomes,state_Q,log_Z,state_zero,L,theta,do_measu
             state_Q = state_Q/sQ**0.5
     else:
         log_Z.append(-np.inf)
-    
+
     return state_Q, state_zero
 
 
@@ -97,7 +100,7 @@ def get_indices(L,Q):
                 p[i] = 1
             count += 1
             p_list.append(np.array(p))
-    
+
     indices = tuple(np.array(p_list).T)
     return indices
 
@@ -121,11 +124,11 @@ def get_probability(state,L,Q,indices=[]):
 def quantum_dynamics_2(data,Q,theta,U_list, decoding_protocol=0):
     """
     input:
-        - data (_type_): 2d array of shape (depth,L) holding values of the outcomes
+        - data (_type_): 2d array of shape (depth-1,L) holding values of the outcomes
         - Q (_type_): initial charge of the quantum state which was used to generate the outcomes
         - neel_initial_state (bool, optional): Defaults to True. This argument is redundant now!
         - decoding_protocol
-            0: No active decoding. Post-select such that both P_Q and P_Q1 are 0
+            0: No active decoding. Post-select such that both P_Q and P_Q1 are not 0
             1: Postselect on trajectories where P_suc != 0, i.e P_Q != 0
             2: Postselect on trajectories where last layer has total charge = Q
             3: Union of 2 and 1
@@ -135,7 +138,7 @@ def quantum_dynamics_2(data,Q,theta,U_list, decoding_protocol=0):
     """
 
     (depth,L) = data.shape
-    
+
     Q2 = Q-1
     if Q<L//2:
         Q2 = Q+1
@@ -151,7 +154,7 @@ def quantum_dynamics_2(data,Q,theta,U_list, decoding_protocol=0):
 
     total = 0
     p_success = []
-    
+
     state = initial_state(L)
 
     N=1
@@ -171,9 +174,9 @@ def quantum_dynamics_2(data,Q,theta,U_list, decoding_protocol=0):
             for x,y,U in U_list[t]:
                 if t >= T-depth:
                     outcomes = (traj[t-T+depth,x],traj[t-T+depth,y])
-            
+
                     state, state_Q_is_zero = unitary_measurement(x,y,U,outcomes,state,log_Z,state_Q_is_zero,L,theta,do_measure=True,debug=False)
-                
+
                 else: #scrambling step
                     outcomes = None
                     state, state_Q_is_zero = unitary_measurement(x,y,U,outcomes,state,log_Z,state_Q_is_zero,L,theta,do_measure=False,debug=False)
@@ -184,7 +187,7 @@ def quantum_dynamics_2(data,Q,theta,U_list, decoding_protocol=0):
                 # assert np.round(p_Q + p_Q2,8) == 1, (p_Q,p_Q2,np.round(p_Q+p_Q2,8))
 
                 # state_Q2, state_Q2_is_zero = transfer(x,T,outcomes,state_Q2,log_Z2,state_Q2_is_zero,L,theta)
-                
+
 
                 if p_Q == 0:
                     if decoding_protocol == 1 or decoding_protocol == 3:
@@ -193,15 +196,16 @@ def quantum_dynamics_2(data,Q,theta,U_list, decoding_protocol=0):
                         return False
 
             p_success.append(p_Q)
-    
+
     return p_success
 
-
+"""
 def get_data(Q,L,p,depth_ratio,scrambling_type,is_noisy,decoding_protocol=0):
     depth = int(L*depth_ratio)
     p_suc = []
     seed=1
-    U_list = circuit_numpy_utils.get_circuit(L,int(depth_ratio*L),scrambling_type=scrambling_type,seed=seed,t_scram=5)
+    u1mrc = U1MRC(number_qubits=L, depth=depth, measurement_locs=m_locs, params=param_list, initial_charge=initial_charge, debug=False)
+    U_list, = U1MRC.generate_u1mrc(L,int(depth_ratio*L),scrambling_type=scrambling_type,seed=seed,t_scram=5)
     if depth_ratio != 1:
         depth_label= "_depth_ratio="+str(depth_ratio)
     else:
@@ -224,7 +228,7 @@ def get_data(Q,L,p,depth_ratio,scrambling_type,is_noisy,decoding_protocol=0):
         return
 
     filedir = 'Weak measurements/data/qiskit_data/measurement_data_all_qubits'+ scrambling_label + noisy_label + depth_label+'/'
-    
+
     filename = filedir +'/L='+str(L)+'_depth='+str(depth)+'_Q='+str(Q)+'_p=' + str(p)+ '_seed='+str(seed)
     with open(filename,'rb') as f:
         data_raw,_,_ = pickle.load(f)
@@ -279,5 +283,63 @@ def run():
                         print(L,p,Q," frac of faulty traj:",temp," time=",time.time()-start,'\n',"is_noisy:",is_noisy,' decoding_protocol:',decoding_protocol)
                 with open(final_file,'wb') as f:
                     pickle.dump(p_suc_dic,f)
-
+"""
 # run()
+L = 8
+depth = L
+Q = L//2
+PARAMS_PER_GATE = 6
+p = 1
+depth_ratio = 1
+scrambling_type = 'Special'
+is_noisy = False
+decoding_protocol = 0
+m_locs = np.random.binomial(1,p,L*(depth-1)).reshape((depth-1,L))
+
+# generate random circuit parameters
+# each layer has L//2
+#params = 4*np.pi*np.random.rand(depth,L//2,PARAMS_PER_GATE)
+param_list = [[4*np.pi*np.random.rand(PARAMS_PER_GATE) 
+            for j in range(L//2-(i%2))] # there are either L//2 or L//2-1 gates for even/odd layers resp.
+            for i in range(depth)]
+
+#quantum_dynamics_2(Q,L,p,depth_ratio=depth_ratio,scrambling_type=scrambling_type,is_noisy=is_noisy,decoding_protocol=decoding_protocol)
+u1mrc = U1MRC(number_qubits=L, depth=depth, measurement_locs=m_locs, params=param_list, initial_charge=Q, debug=False)
+circ, U_list = u1mrc.generate_u1mrc(measurement_rate=p, reali=1, save_state=False, save_unitaries=True)
+backend = qk.Aer.get_backend('qasm_simulator')
+job = qk.execute(circ, backend, shots=1)
+# retrieve measurement outcomes as configurations of \pm 1 if measurement outcome 1/0, and 0 if no measurement applied
+# to do so we need the measurement outcomes from get_counts + measurement locations (to distinguish 0 from no measurement)
+measurement_outcomes = job.result().get_counts(circ)
+
+print(measurement_outcomes)
+for measurement in measurement_outcomes: 
+    print(measurement)
+number_different_outcomes = len(measurement_outcomes)
+measurement_record = np.zeros((number_different_outcomes,depth,L))
+frequency_measurements = np.zeros(number_different_outcomes)
+ind_proba = 0 
+for frequency in measurement_outcomes.values(): 
+    frequency_measurements[ind_proba] = frequency
+    ind_proba += 1 
+len_measurements = depth*L+(depth-1) # length of each measurement record when stored as keys 
+ind_measurement = 0
+for measurement in measurement_outcomes: # measurement record as keys
+    ind_qubit = 0 
+    ind_layer = 0
+    for i in range(len_measurements): 
+        if ind_qubit != L: 
+            if (i < (L+1)*(depth-1)): # read bitstrings backwards (left most ones correspond to last layer)
+                if m_locs[ind_layer,ind_qubit]:
+                    measurement_record[ind_measurement,ind_layer,ind_qubit] = int(2*(int(measurement[len_measurements-i-1])-1/2)) # measurement outcome \pm 1 
+                else:
+                    measurement_record[ind_measurement,ind_layer,ind_qubit] = 0 # measurement records only on first depth-1 layers
+            else: 
+                measurement_record[ind_measurement,ind_layer,ind_qubit] = int(2*(int(measurement[len_measurements-i-1])-1/2)) # measurement outcome \pm 1 
+            ind_qubit += 1
+        else: 
+            ind_qubit -= L
+            ind_layer += 1
+    ind_measurement += 1    
+
+print("proba ", quantum_dynamics_2(measurement_record[0,:,:],Q,np.pi/2, U_list, decoding_protocol=decoding_protocol))
