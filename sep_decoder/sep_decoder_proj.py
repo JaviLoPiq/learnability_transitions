@@ -146,7 +146,6 @@ def sep_dynamics_2(data,Q):
         else:
             for x in range(1,L-1,2):
                 outcomes = (traj[t,x],traj[t,x+1])
-                debug=False
 
                 state_Q, state_Q_is_zero = transfer(x,T,outcomes,state_Q,log_Z,state_Q_is_zero,L,debug=False)
 
@@ -158,19 +157,20 @@ def sep_dynamics_2(data,Q):
                 """
 
         # print(t,time.time()-start,total)
+        
         if state_Q_is_zero:              
             break
     
         if state_Q2_is_zero:
             break
-        
+    
     if state_Q_is_zero:
-        p_Q = 0
-    elif state_Q2_is_zero:
-        p_Q = 1
+        if state_Q2_is_zero: 
+            raise ValueError("can't be both p_Q and p_Q2 zero")  
+        else:
+            p_Q = 0
     else:
         ratio_p = np.exp(np.sum(log_Z) - np.sum(log_Z2)) # ratio of the prob. is the ratio of the respective partition function in the SEP dynamics
         p_Q = 1/(1+1/ratio_p)
-        p_Q2 = 1/(1+ratio_p)
-    
+  
     return p_Q

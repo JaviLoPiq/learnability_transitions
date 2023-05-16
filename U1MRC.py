@@ -3,6 +3,7 @@ import qiskit as qk
 import random
 import pickle
 import h5py
+from itertools import combinations
 
 from qiskit import QuantumCircuit, execute, Aer
 from qiskit.quantum_info import Statevector
@@ -48,22 +49,22 @@ def unitary_gate_from_params(gate_params):
     Generate U(1) unitary matrix for a given set of parameters.
     """
     circ = qk.QuantumCircuit(2, name="U1_gate")
-    u1gate(circ,gate_params,0,1)
+    u1gate(circ,gate_params,1,0) # reverse order of qubits (to go from little-endian convention used by default in qiskit to big-endian convention - i.e. q2q1 to q1q2)
     backend = qk.Aer.get_backend('unitary_simulator')
     job = qk.execute(circ, backend)
     decimals = 10
     return np.array(job.result().get_unitary(circ,decimals))
 
-def dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, s):
+def dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, Q):
     m_locs = np.load('learnability_transitions_cluster/data/measurement_locs_L_{}_p_{}_iter_{}.npy'.format(L, p, circuit_iter), allow_pickle=True)
     # pickle for dict data type
-    with open('learnability_transitions_cluster/data/measurement_record_dict_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy'.format(L,p,s,number_shots,circuit_iter), 'rb') as f:
+    with open('learnability_transitions_cluster/data/measurement_record_dict_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy'.format(L,p,Q,number_shots,circuit_iter), 'rb') as f:
         measurement_outcomes_dict = pickle.load(f)
-    measurement_outcomes = [key for key, value in measurement_outcomes_dict.items() for i in range(value)] # list of measurement outcomes, including repeated
-    measurement_record = np.zeros((number_shots,depth,L))
+    #measurement_outcomes = [key for key, value in measurement_outcomes_dict.items() for i in range(value)] # list of measurement outcomes, including repeated
+    measurement_record = np.zeros((len(measurement_outcomes_dict),depth,L))
     len_measurements = depth*L+(depth-1) # length of each measurement record when stored as keys 
     ind_measurement = 0
-    for measurement in measurement_outcomes: # measurement record as keys
+    for measurement in measurement_outcomes_dict: # loop over nonrepeated samples
         ind_qubit = 0 
         ind_layer = 0
         for i in range(len_measurements): 
@@ -81,6 +82,21 @@ def dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, s):
                 ind_layer += 1
         ind_measurement += 1   
     return measurement_record[:,0:depth-1,:] # return all but last layer, which contains measurements of all qubits
+
+def fixed_charge_state(L,Q): #TODO: remove initial_state(L,Q) from sep and quantum decoders
+    """
+    Initial superposition of states of fixed charge (Hamming weight)
+    """
+    state = np.zeros((2,)*L)
+    for positions in combinations(range(L), Q):
+        p = [0] * L
+
+        for i in positions:
+            p[i] = 1
+
+        state[tuple(p)] = 1 
+    state = state/np.abs(np.sum(state))**0.5
+    return state
 
 class U1MRC(object):
     def __init__(self, number_qubits, depth, measurement_locs, params, initial_charge, debug = False):
@@ -102,7 +118,7 @@ class U1MRC(object):
         self.initial_charge = initial_charge
         self.debug = debug
 
-    def state_preparation(self, save_unitaries=False):
+    def state_preparation(self, scrambled_state=False, save_unitaries=False):
         """
         State preparation: returns evolved state by unitaries, when initial state is product state of fixed charge.
 
@@ -114,36 +130,42 @@ class U1MRC(object):
             circ (QuantumCircuit): Circuit used. 
             U_gates_list (list): List of U(1) unitaries used. It's a list of lists, with odd (even) entries corresponding to odd (even) layers.
         """
-        U_gates_list = []
-        charge_locations = random.sample(range(self.number_qubits), self.initial_charge) # randomly select locations of charges
-        qreg = qk.QuantumRegister(self.number_qubits,'q')
-        # add the registers to the circuit
-        circ = qk.QuantumCircuit(qreg)
-        for i in range(self.initial_charge):
-            circ.x([charge_locations[i]])
-        # create the circuit layer-by-layer
-        for i in range(self.depth):
-            U_gates_list_fixed_layer = []
-            # gates
-            if i%2 == 0: # even layer
-                for j in range(self.number_qubits//2):
-                    u1gate(circ, self.params[i][j], qreg[2*j], qreg[2*j+1]) # TODO: same as passing 2j, 2j+1?
-                    if save_unitaries: 
-                        U_gates_list_fixed_layer.append((2*j, 2*j+1, unitary_gate_from_params(self.params[i][j])))
-            else: # odd layer
-                for j in range(1,self.number_qubits//2):
-                    u1gate(circ, self.params[i][j-1], qreg[2*j-1], qreg[2*j])
-                    if save_unitaries: 
-                        U_gates_list_fixed_layer.append((2*j-1, 2*j, unitary_gate_from_params(self.params[i][j-1])))
+        qreg = qk.QuantumRegister(self.number_qubits,'q') #not strictly needed
+        circ = qk.QuantumCircuit(qreg) 
+        if scrambled_state:
+            U_gates_list = []
+            charge_locations = random.sample(range(self.number_qubits), self.initial_charge) # randomly select locations of charges
+            for i in range(self.initial_charge):
+                circ.x([charge_locations[i]])
+            # create the circuit layer-by-layer
+            for i in range(self.depth):
+                U_gates_list_fixed_layer = []
+                # gates
+                if i%2 == 0: # even layer
+                    for j in range(self.number_qubits//2):
+                        u1gate(circ, self.params[i][j], qreg[2*j], qreg[2*j+1]) # TODO: same as passing 2j, 2j+1?
+                        if save_unitaries: 
+                            U_gates_list_fixed_layer.append((2*j, 2*j+1, unitary_gate_from_params(self.params[i][j])))
+                else: # odd layer
+                    for j in range(1,self.number_qubits//2):
+                        u1gate(circ, self.params[i][j-1], qreg[2*j-1], qreg[2*j])
+                        if save_unitaries: 
+                            U_gates_list_fixed_layer.append((2*j-1, 2*j, unitary_gate_from_params(self.params[i][j-1])))
+                if save_unitaries:
+                    U_gates_list.append(U_gates_list_fixed_layer)  
             if save_unitaries:
-                U_gates_list.append(U_gates_list_fixed_layer)  
-        if save_unitaries:
-            return qreg, circ, U_gates_list 
-        else: 
+                return qreg, circ, U_gates_list 
+            else: 
+                return qreg, circ
+        else:
+            state = fixed_charge_state(self.number_qubits, self.initial_charge)
+            sv = Statevector(state.reshape(2**self.number_qubits, 1))
+            circ.initialize(sv)
             return qreg, circ
 
+
     # TODO: remove measurement_rate as it's only used for storing state. Can we write everything w/o using quantum registers? 
-    def generate_u1mrc(self, measurement_rate, reali=1, save_state=False, save_unitaries=False):
+    def generate_u1mrc(self, measurement_rate, reali=1, save_initial_state=False, save_unitaries=False):
         """
         Function to generate a random U(1) circuit.
 
@@ -155,25 +177,34 @@ class U1MRC(object):
         Returns:
             circ (qk.QuantumCircuit): quantum circuit including measurements applied to initial state.
         """
-        if save_unitaries:
-            qreg, circ, U_gates_list = self.state_preparation(save_unitaries=True)
-        else: 
-            qreg, circ = self.state_preparation()
+        if save_initial_state: # state is scrambled
+            if save_unitaries:
+                qreg, circ, U_gates_list = self.state_preparation(scrambled_state=True, save_unitaries=True)
+            else:
+                qreg, circ = self.state_preparation(scrambled_state=True)
 
-        if save_state:
             # Obtain the statevector
             backend = Aer.get_backend('statevector_simulator')
             result = execute(circ, backend).result()
             statevector = result.get_statevector(circ)
-            with h5py.File('data/initial_state_L_{}_p_{}_Q_{}_iter_{}.hdf5'.format(self.number_qubits, measurement_rate, self.initial_charge, reali), 'w') as f:
-                f.create_dataset('statevector', data=np.array(statevector))
+            with h5py.File('learnability_transitions_cluster/data/initial_state_L_{}_p_{}_Q_{}_iter_{}.hdf5'.format(self.number_qubits, measurement_rate, self.initial_charge, reali), 'w') as f:
+                f.create_dataset('statevector', data=np.array(statevector))   
+        else:
+            U_gates_list = []
+            qreg, circ = self.state_preparation()
 
         creg_list = [qk.ClassicalRegister(self.number_qubits,'c'+str(j)) for j in range(self.depth)] # for measurement outcomes
 
         for reg in creg_list:
             circ.add_register(reg)
-        # create the circuit layer-by-layer
-        for i in range(self.depth):
+        if len(self.params) == self.depth: # no scrambling layers!
+            initial_layer = 0 
+            final_layer = self.depth 
+        else: # the circuit contains scrambling layers 
+            initial_layer = self.depth 
+            final_layer = 2*self.depth
+        # apply layers of unitaries + measurements    
+        for i in range(initial_layer, final_layer): 
             U_gates_list_fixed_layer = []
             # gates
             # TODO: avoid using save_unitaries twice!
@@ -187,16 +218,16 @@ class U1MRC(object):
                     u1gate(circ, self.params[i][j-1], qreg[2*j-1], qreg[2*j], debug=False)
                     if save_unitaries: 
                         U_gates_list_fixed_layer.append((2*j-1, 2*j, unitary_gate_from_params(self.params[i][j-1])))
-            if i < self.depth - 1:
+            if initial_layer + i < final_layer - 1:
                 for j in range(self.number_qubits):
-                    if self.measurement_locs[i,j]:
-                        circ.measure(j, creg_list[i][j])
+                    if self.measurement_locs[i-initial_layer,j]: 
+                        circ.measure(j, creg_list[i-initial_layer][j])
             if save_unitaries:            
                 U_gates_list.append(U_gates_list_fixed_layer)            
             if self.debug: circ.barrier()
 
         # final measurements
-        circ.measure(qreg,creg_list[i])
+        circ.measure(qreg,creg_list[i-initial_layer])
         # TODO: think of better way of dealing with save_unitaries
         if save_unitaries:
             return circ, U_gates_list

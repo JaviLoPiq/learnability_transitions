@@ -5,3 +5,5 @@ plots
 results_LSTM.numbers
 plots.py
 __pycache__
+sep_decoder/__pycache__
+plots2.py
