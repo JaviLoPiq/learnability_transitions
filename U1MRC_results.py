@@ -7,11 +7,11 @@ import pickle
 PARAMS_PER_GATE = 6
 L = 10 # number of qubits
 depth = L 
-number_shots = 1000 # number of samples collected
+number_shots = 2000 # number of samples collected
 save_initial_state = False # save initial state if True
 save_unitaries = True # save unitaries used throughout entire circuit (including scrambling step if used) if True (set True by default)
-circuit_iter = 3
-p = 0.2
+circuit_iter = 4
+p = 0.01
 
 np.random.seed(circuit_iter)
 # Random parts

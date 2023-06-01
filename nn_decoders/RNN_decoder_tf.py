@@ -7,10 +7,10 @@ sys.path.insert(1, '/Users/javier/Dropbox/Projects/measurement transitions/learn
 from U1MRC import unitary_gate_from_params, U1MRC, dict_to_array_measurements
 
 # retrieve data 
-number_shots = 10000 
+number_shots = 2000
 L = 10
 depth = L # samples will have depth = L-1 since they exclude very last layer containing final measurements
-number_circuit_realis = 10
+number_circuit_realis = 3
 num_meas_rates = 11
 num_RNN_units = 64
 seed_number = 1
@@ -22,7 +22,7 @@ else:
     p = p_val/(num_meas_rates-1)
 np.random.seed(seed_number)
 test_acc_list_fixed_p = []
-for circuit_iter in range(1,number_circuit_realis+1):
+for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
     try:
         measurement_record_0 = dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, L//2)     
         measurement_record_1 = dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, L//2+1) 
@@ -57,12 +57,15 @@ for circuit_iter in range(1,number_circuit_realis+1):
 
         # test the model
         test_loss, test_acc = model.evaluate(test_data, test_labels)
+
+        # alternatively, use:
+        #predictions = model.predict(test_data)
+        #test_acc = np.mean([abs(predictions[i][0] - test_labels[i]) < 0.5 for i in range(len(test_labels))])
         print('circuit_reali', circuit_iter, 'Test accuracy:', test_acc)
         #model.summary()
         test_acc_list_fixed_p.append(test_acc)
         #test_acc_arr[circuit_iter-1,p_val] = test_acc
     except:
         print(" ignore circuit iter ", circuit_iter)  
-print(" number of circuit realis ", len(test_acc_list_fixed_p))  
-print(test_acc_list_fixed_p)
-np.save("learnability_transitions_cluster/data/accuracy_LSTM_decoder_{}_L_{}_p_{}_number_shots_{}.npy".format(num_RNN_units,L,p,number_shots), test_acc_list_fixed_p) # store all measurements except for final measurements 
+    #print(" number of circuit realis ", len(test_acc_list_fixed_p))  
+    np.save("learnability_transitions_cluster/data/accuracy_LSTM_decoder_{}_L_{}_p_{}_number_shots_{}.npy".format(num_RNN_units,L,p,number_shots), test_acc) # store all measurements except for final measurements 

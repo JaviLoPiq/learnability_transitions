@@ -8,9 +8,9 @@ from U1MRC import dict_to_array_measurements
 
 L = 10
 depth = L
-p = 0.2
-number_shots = 100
-number_circuit_realis = 3
+p = 0.01
+number_shots = 2000
+number_circuit_realis = 4
 np.random.seed(1) # fix seed so that all decoders "decode" same training data
 accuracy_array = []
 for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
@@ -47,6 +47,6 @@ for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
     except: 
         print("ignore circuit iter ", circuit_iter)    
 
-print(np.mean([i > 0.5 for i in accuracy_array]))
-print(np.mean(accuracy_array))        
-#np.save("learnability_transitions_cluster/data/accuracy_SEP_decoder_L_{}_p_{}_numbershots_{}.npy".format(L,p,number_shots), accuracy_array) # store all measurements except for final measurements 
+    print(np.mean([i > 0.5 for i in accuracy_array]))
+    print(np.mean(accuracy_array))        
+    np.save("learnability_transitions_cluster/data/accuracy_SEP_decoder_L_{}_p_{}_circuit_iter_{}_number_shots_{}.npy".format(L,p,circuit_iter,number_shots), accuracy) # store all measurements except for final measurements 

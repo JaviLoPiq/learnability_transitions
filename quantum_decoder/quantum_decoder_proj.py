@@ -132,20 +132,15 @@ def get_probability(state,L,Q,indices=[]):
     return prob
 
 
-def quantum_dynamics_2(data, Q, U_list, initial_state_0, initial_state_1, decoding_protocol=0):
+def quantum_dynamics_2(data, Q, U_list, initial_state_0=None, initial_state_1=None):
     """
     input:
-        - data (_type_): 2d array of shape (depth-1,L) holding values of the outcomes
-        - Q (_type_): initial charge of the quantum state which was used to generate the outcomes
-        - neel_initial_state (bool, optional): Defaults to True. This argument is redundant now!
-        - decoding_protocol
-            0: No active decoding. Post-select such that both P_Q and P_Q1 are not 0
-            1: Postselect on trajectories where P_suc != 0, i.e P_Q != 0
-            2: Postselect on trajectories where last layer has total charge = Q
-            3: Union of 2 and 1
+        - data (np.array): 2d array of shape (depth-1,L) holding values of the outcomes.
+        - Q (int): initial charge of the quantum state which was used to generate the outcomes.
+        - initial_state_0/1 (np.array): Defaults to None. If so, apply decoding using supersposition protocol, otherwise use standard protocol with two initial states.
 
     Returns:
-        p_Q: Probility of the initial charge being Q (the true charge) in the SEP dynamics
+        p_Q: Probility of the initial charge being Q (the true charge) computed from Born probabilities.
     """
 
     (depth,L) = data.shape # depth (of unitaries + measurements) is L-1 usually (last layer does not contain measurements)
@@ -163,10 +158,14 @@ def quantum_dynamics_2(data, Q, U_list, initial_state_0, initial_state_1, decodi
     indices_Q2 = get_indices(L,Q2)
     p_success = []
 
-    state_Q = initial_state_0.copy()
-    state_Q2 = initial_state_1.copy()
+    if (initial_state_0 is None) and (initial_state_1 is None): # initialize state as equal superposition of both charged states
+        state_Q = initial_state(L)
+    elif (initial_state_0 is not None) and (initial_state_1 is not None):
+        state_Q = initial_state_0.copy()
+        state_Q2 = initial_state_1.copy()
+    else: 
+        raise ValueError("can't have one charged state initialized and not the other")        
 
-    state_Q = initial_state(L) # TODO: Fix this so that no need to do equal superposition!
     traj = data
     state_Q_is_zero = False
     state_Q2_is_zero = False
@@ -183,32 +182,28 @@ def quantum_dynamics_2(data, Q, U_list, initial_state_0, initial_state_1, decodi
             if t >= initial_layer: 
                 outcomes = (traj[t-initial_layer,x],traj[t-initial_layer,y])
                 state_Q, state_Q_is_zero = unitary_measurement(x,y,U,outcomes,state_Q,log_Z,state_Q_is_zero,L,do_measure=True,debug=False)
-                #state_Q2, state_Q2_is_zero = unitary_measurement(x,y,U,outcomes,state_Q2,log_Z2,state_Q2_is_zero,L,do_measure=True,debug=False)
-            #else: #scrambling step
-            #    outcomes = None
-            #    state, state_Q_is_zero = unitary_measurement(x,y,U,outcomes,state,log_Z,state_Q_is_zero,L,do_measure=False,debug=False)                    
+                if initial_state_0 is not None: # standard protocol
+                    state_Q2, state_Q2_is_zero = unitary_measurement(x,y,U,outcomes,state_Q2,log_Z2,state_Q2_is_zero,L,do_measure=True,debug=False)      
+                else: # equal superposition protocol                              
+                    p_Q = get_probability(state_Q,L,Q,indices=indices_Q)
+                    p_Q2 = get_probability(state_Q,L,Q2,indices=indices_Q2)
 
-            
-            p_Q = get_probability(state_Q,L,Q,indices=indices_Q)
-            p_Q2 = get_probability(state_Q,L,Q2,indices=indices_Q2)
-
-            if (p_Q == 0) and (p_Q2 == 0): #TODO: revise!
-                raise ValueError("can't be both p_Q and p_Q2 zero")
+                    if (p_Q == 0) and (p_Q2 == 0): #TODO: revise!
+                        raise ValueError("can't be both p_Q and p_Q2 zero")
                 
         if t >= initial_layer: 
-            """
-            if state_Q_is_zero:
-                if state_Q2_is_zero: #TODO: chech that if both state_Q_is_zero and state_Q2_is_zero => p_Q = 1
-                    raise ValueError("can't be both p_Q and p_Q2 zero")
-                    
-                else:
-                    p_Q = 0     
+            if initial_state_0 is not None: # standard protocol
+                if state_Q_is_zero:
+                    if state_Q2_is_zero: 
+                        raise ValueError("can't be both p_Q and p_Q2 zero")
+                        
+                    else:
+                        p_Q = 0     
+                        p_success.append(p_Q)
+                else:   
+                    ratio_p = np.exp(np.sum(log_Z) - np.sum(log_Z2)) # ratio of the prob. is the ratio of the respective partition function computed from Born probabilities
+                    p_Q = 1/(1+1/ratio_p)    
                     p_success.append(p_Q)
-            else:   
-                ratio_p = np.exp(np.sum(log_Z) - np.sum(log_Z2)) # ratio of the prob. is the ratio of the respective partition function in the SEP dynamics
-                p_Q = 1/(1+1/ratio_p)    
-                p_success.append(p_Q)
-            """
-            p_success.append(p_Q)    
-    #print(p_success)                    
+            else: # equal superposition protocol
+                p_success.append(p_Q)    
     return p_success

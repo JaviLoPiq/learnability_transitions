@@ -12,18 +12,17 @@ from quantum_decoder_proj import quantum_dynamics_2
 
 L = 10
 depth = L
-p = 0.2
-number_shots = 1000
-number_circuit_realis = 3
+p = 0.01
+number_shots = 2000
+number_circuit_realis = 4 
 depth_ratio = 1
 scrambling_type = 'Special'
 is_noisy = False
-decoding_protocol = 3
 save_unitaries = False 
 
 np.random.seed(1)
 accuracy_array = []
-for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
+for circuit_iter in range(1,number_circuit_realis+1):
     try:   
         measurement_record_0 = dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, L//2)     
         measurement_record_1 = dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, L//2+1) 
@@ -47,17 +46,11 @@ for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
         num_different_records = len(measurement_record_0[:,0,0])
         accuracy = []
         for i in range(0,test_data_number_samples):
-            charge = int(L//2 + labels[i])
-            if labels[i] == 0: # Q = L//2 
-                initial_state_Q = fixed_charge_state(L,L//2)
-                initial_state_Q2 = fixed_charge_state(L,L//2+1)
-            else: # Q = L//2 + 1
-                initial_state_Q = fixed_charge_state(L,L//2+1)
-                initial_state_Q2 = fixed_charge_state(L,L//2)                
-            proba_success = quantum_dynamics_2(data[i,:,:], charge, U_list, initial_state_Q, initial_state_Q2, decoding_protocol=decoding_protocol)[depth-2]
+            charge = int(L//2 + labels[i])               
+            proba_success = quantum_dynamics_2(data[i,:,:], charge, U_list)[depth-2] # use equal superposition protocol
             accuracy.append(proba_success > 0.5) 
         accuracy_array.append(np.mean(accuracy))               
     except: 
         print("ignore circuit iter ", circuit_iter)  
-np.save("learnability_transitions_cluster/data/accuracy_quantum_decoder_L_{}_p_{}_numbershots_{}.npy".format(L,p,number_shots), accuracy_array) # store all measurements except for final measurements 
-print("acc", np.mean(accuracy_array))      
+    np.save("learnability_transitions_cluster/data/accuracy_quantum_decoder_L_{}_p_{}_circuit_iter_{}_number_shots_{}.npy".format(L,p,circuit_iter,number_shots), accuracy) # store all measurements except for final measurements 
+    print("acc", np.mean(accuracy_array))      
