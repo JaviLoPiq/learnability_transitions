@@ -60,11 +60,12 @@ def dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, Q):
     # pickle for dict data type
     with open('learnability_transitions_cluster/data/measurement_record_dict_L_{}_p_{}_Q_{}_numbershots_{}_iter_{}.npy'.format(L,p,Q,number_shots,circuit_iter), 'rb') as f:
         measurement_outcomes_dict = pickle.load(f)
-    #measurement_outcomes = [key for key, value in measurement_outcomes_dict.items() for i in range(value)] # list of measurement outcomes, including repeated
-    measurement_record = np.zeros((len(measurement_outcomes_dict),depth,L))
+    measurement_outcomes = [key for key, value in measurement_outcomes_dict.items() for i in range(value)] # list of measurement outcomes, including repeated
+    #measurement_record = np.zeros((len(measurement_outcomes_dict),depth,L))
+    measurement_record = np.zeros((number_shots, depth, L))
     len_measurements = depth*L+(depth-1) # length of each measurement record when stored as keys 
     ind_measurement = 0
-    for measurement in measurement_outcomes_dict: # loop over nonrepeated samples
+    for measurement in measurement_outcomes: # loop over repeated samples
         ind_qubit = 0 
         ind_layer = 0
         for i in range(len_measurements): 

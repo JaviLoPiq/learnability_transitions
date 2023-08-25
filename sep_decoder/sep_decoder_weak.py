@@ -102,6 +102,33 @@ def transfer(x,T,outcomes,state_Q,log_Z,state_zero,L,theta,debug=False):
     
     return state_Q, state_zero
 
+def boundary_measurement(state_Q,theta,outcomes,L,log_Z,state_zero): #TODO: only apply boundary_measurement on 1st and last qubit, not pairs of qubits
+    # Left boundary
+    state_Q = state_Q.reshape((4,)*(L//2))
+    if outcomes[0] == 1:
+        state_Q[(0,1),:] = 0
+        state_Q[(2,3),:] = np.sin(theta)**2 * state_Q[(2,3),:]
+    elif outcomes[0] == -1:
+        state_Q[(2,3),:] = np.cos(theta)**2 *state_Q[(2,3),:]
+    # Right boundary
+    state_Q = np.moveaxis(state_Q,(L-2)//2,0)
+    if outcomes[1] == 1:
+        state_Q[(0,2),:] = 0
+        state_Q[(1,3),:] = np.sin(theta)**2 * state_Q[(1,3),:]
+    elif outcomes[1] == -1:
+        state_Q[(1,3),:] = np.cos(theta)**2 *state_Q[(1,3),:]
+    state_Q = np.moveaxis(state_Q,0,(L-2)//2) # moving axis back to (L-2)//2
+    state_Q = state_Q.reshape((2,)*L)   
+
+    sQ = np.sum(state_Q)
+    if sQ == 0:
+        state_zero = True
+        log_Z.append(-np.inf)
+    else:
+        state_zero = False
+        log_Z.append(np.log(sQ))
+        state_Q = state_Q/sQ
+    return state_Q, state_zero
 
 def sep_dynamics_2(data,Q,theta,neel_initial_state=True, decoding_protocol=0):
     
@@ -154,7 +181,7 @@ def sep_dynamics_2(data,Q,theta,neel_initial_state=True, decoding_protocol=0):
     log_Z = []
     log_Z2 = []
     total += N
-    for t in range(depth)[:-1]:
+    for t in range(depth)[:]:
         if t%2 == 0: #even layer
             for x in range(0,L-1,2):
                 outcomes = (traj[t,x],traj[t,x+1])
@@ -182,6 +209,9 @@ def sep_dynamics_2(data,Q,theta,neel_initial_state=True, decoding_protocol=0):
                         return False
                     if state_Q2_is_zero:
                         return False
+            outcomes = (traj[t,0], traj[t,L-1])
+            state_Q, state_Q_is_zero = boundary_measurement(state_Q,theta,outcomes,L,log_Z,state_Q_is_zero)
+            state_Q2, state_Q2_is_zero = boundary_measurement(state_Q2,theta,outcomes,L,log_Z2,state_Q2_is_zero)        
 
         # print(t,time.time()-start,total)
         if state_Q_is_zero:              
@@ -196,6 +226,7 @@ def sep_dynamics_2(data,Q,theta,neel_initial_state=True, decoding_protocol=0):
         p_Q = 1
     else:
         ratio_p = np.exp(np.sum(log_Z) - np.sum(log_Z2))
+        #print(" ratio p ", ratio_p)
         p_Q = 1/(1+1/ratio_p)
         p_Q2 = 1/(1+ratio_p)
     

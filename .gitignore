@@ -7,3 +7,13 @@ plots.py
 __pycache__
 sep_decoder/__pycache__
 plots2.py
+plots3.py
+plots_learning_complexity.py
+qiskit_data
+U1MRC_exp.py 
+RNN_decoder_tf_exp.py
+transformer_decoder_tf_exp.py
+notes
+quantum_decoder_weak_results.py
+circuit_generation.py 
+Qiskit_trajectories.py

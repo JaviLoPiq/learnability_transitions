@@ -3,16 +3,23 @@ from tensorflow.keras import layers
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR) #do not show tensorflow warnings
 import numpy as np 
 import sys
+from keras.callbacks import History
+from keras.optimizers import Adam 
 sys.path.insert(1, '/Users/javier/Dropbox/Projects/measurement transitions/learnability_transitions') # TODO: import all files needed
 from U1MRC import unitary_gate_from_params, U1MRC, dict_to_array_measurements
 
 # retrieve data 
-number_shots = 2000
+number_shots = 2500
+percentage_samples_used = 1
 L = 10
 depth = L # samples will have depth = L-1 since they exclude very last layer containing final measurements
-number_circuit_realis = 3
+number_circuit_realis = 10
 num_meas_rates = 11
 num_RNN_units = 64
+num_RNN_units_2 = 64
+learning_rate = 1E-3
+num_epochs = 3
+dropout=0.3
 seed_number = 1
 p_val = 2
 test_acc_list = []
@@ -22,7 +29,7 @@ else:
     p = p_val/(num_meas_rates-1)
 np.random.seed(seed_number)
 test_acc_list_fixed_p = []
-for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
+for circuit_iter in range(1,number_circuit_realis+1):
     try:
         measurement_record_0 = dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, L//2)     
         measurement_record_1 = dict_to_array_measurements(L, depth, p, circuit_iter, number_shots, L//2+1) 
@@ -38,7 +45,7 @@ for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
         labels = charge_output[permut]
         test_percentage = 0.2 
         train_percentage = 1 - test_percentage 
-        number_samples = len(measurement_records)
+        number_samples = len(measurement_records) * percentage_samples_used
         train_data_number_samples = round(train_percentage * number_samples)
         train_data = data[0:train_data_number_samples,:,:]
         train_labels = labels[0:train_data_number_samples]
@@ -47,16 +54,22 @@ for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
         # Define the RNN model
         model = tf.keras.Sequential() 
         model.add(tf.keras.layers.Input(shape = (depth-1, L)))
-        model.add(tf.keras.layers.LSTM(units = num_RNN_units))
+        # add layers: all but last one should have "return_sequences=True" as argument
+        model.add(tf.keras.layers.LSTM(units = num_RNN_units, dropout=dropout))
+        #model.add(tf.keras.layers.LSTM(units = num_RNN_units_2))
         model.add(tf.keras.layers.Dense(1, activation = 'sigmoid'))
 
-        # Compile the model with binary crossentropy loss and Adam optimizer
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-        # Train the model
-        model.fit(train_data, train_labels, epochs=10, batch_size=32) 
+        optimizer = Adam(learning_rate=learning_rate)
 
-        # test the model
-        test_loss, test_acc = model.evaluate(test_data, test_labels)
+        # Compile the model with binary crossentropy loss and Adam optimizer
+        model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+        history = History() 
+        # Train the model
+        model.fit(train_data, train_labels, epochs=num_epochs, batch_size=32, validation_data=(test_data, test_labels), callbacks=[history]) 
+
+        training_loss = history.history['loss']
+        testing_loss = history.history['val_loss']
+        test_acc = history.history['val_accuracy']
 
         # alternatively, use:
         #predictions = model.predict(test_data)
@@ -64,8 +77,7 @@ for circuit_iter in range(number_circuit_realis,number_circuit_realis+1):
         print('circuit_reali', circuit_iter, 'Test accuracy:', test_acc)
         #model.summary()
         test_acc_list_fixed_p.append(test_acc)
-        #test_acc_arr[circuit_iter-1,p_val] = test_acc
     except:
         print(" ignore circuit iter ", circuit_iter)  
-    #print(" number of circuit realis ", len(test_acc_list_fixed_p))  
-    np.save("learnability_transitions_cluster/data/accuracy_LSTM_decoder_{}_L_{}_p_{}_number_shots_{}.npy".format(num_RNN_units,L,p,number_shots), test_acc) # store all measurements except for final measurements 
+    print(test_acc_list_fixed_p)#, np.mean(test_acc_list_fixed_p))
+    #np.save("learnability_transitions_cluster/data/accuracy_LSTM_decoder_{}_layer_2_32_L_{}_p_{}_number_shots_{}.npy".format(num_RNN_units,L,p,number_shots), test_acc) # store all measurements except for final measurements 

@@ -100,6 +100,31 @@ def unitary_measurement(x,y,U,outcomes,state_Q,log_Z,state_zero,L,do_measure,deb
 
     return state_Q, state_zero
 
+def boundary_measurement(state_Q,outcomes,L,log_Z,state_zero): #TODO: only apply boundary_measurement on 1st and last qubit, not pairs of qubits
+    # Left boundary
+    state_Q = state_Q.reshape((4,)*(L//2))
+    if outcomes[0] != 0: # outcome at x is non-zero
+        proj = int(1 - (outcomes[0]+1)//2)
+        state_Q[2*proj,:] = 0
+        state_Q[2*proj+1,:] = 0
+    # Right boundary
+    state_Q = np.moveaxis(state_Q,(L-2)//2,0)
+    if outcomes[1] != 0: # outcome at x+1 in non-zero
+        proj = int(1 - (outcomes[1]+1)//2)
+        state_Q[proj,:] = 0
+        state_Q[proj+2,:] = 0
+    state_Q = np.moveaxis(state_Q,0,(L-2)//2) # moving axis back to (L-2)//2
+    state_Q = state_Q.reshape((2,)*L)   
+
+    sQ = np.sum(np.abs(state_Q)**2)
+    if sQ == 0:
+        state_zero = True
+        log_Z.append(-np.inf)
+    else:
+        state_zero = False
+        log_Z.append(np.log(sQ))
+        state_Q = state_Q/sQ**0.5
+    return state_Q, state_zero
 
 def get_indices(L,Q):
     """
@@ -190,6 +215,11 @@ def quantum_dynamics_2(data, Q, U_list, initial_state_0=None, initial_state_1=No
 
                     if (p_Q == 0) and (p_Q2 == 0): #TODO: revise!
                         raise ValueError("can't be both p_Q and p_Q2 zero")
+        
+        if t % 2 == 1: # boundary measurements
+            outcomes = (traj[t-initial_layer,0], traj[t-initial_layer,L-1])
+            state_Q, state_Q_is_zero = boundary_measurement(state_Q,outcomes,L,log_Z,state_Q_is_zero)
+            #state_Q2, state_Q2_is_zero = boundary_measurement(state_Q2,outcomes,L,log_Z2,state_Q2_is_zero)
                 
         if t >= initial_layer: 
             if initial_state_0 is not None: # standard protocol
