@@ -5,6 +5,7 @@ import numpy as np
 import sys
 from keras.callbacks import History
 from keras.optimizers import Adam 
+from tensorflow.keras.callbacks import EarlyStopping
 sys.path.insert(1, '/Users/javier/Dropbox/Projects/measurement transitions/learnability_transitions') # TODO: import all files needed
 from U1MRC import unitary_gate_from_params, U1MRC, dict_to_array_measurements
 
@@ -63,14 +64,23 @@ for circuit_iter in range(1,number_circuit_realis+1):
 
         # Compile the model with binary crossentropy loss and Adam optimizer
         model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-        history = History() 
+        
+        early_stopping = EarlyStopping(monitor='val_accuracy', patience=5, restore_best_weights=True)
+        
         # Train the model
-        model.fit(train_data, train_labels, epochs=num_epochs, batch_size=32, validation_data=(test_data, test_labels), callbacks=[history]) 
+        history = model.fit(train_data, train_labels, epochs=num_epochs, batch_size=batch_size, validation_data=(test_data, test_labels), callbacks=[early_stopping])
+
+        val_accuracy = history.history['val_accuracy']
+
+        stopped_epoch = early_stopping.stopped_epoch
 
         training_loss = history.history['loss']
         testing_loss = history.history['val_loss']
         test_acc = history.history['val_accuracy']
 
+        stopped_epoch = early_stopping.stopped_epoch
+
+        test_acc_list_fixed_p.append(val_accuracy)
         # alternatively, use:
         #predictions = model.predict(test_data)
         #test_acc = np.mean([abs(predictions[i][0] - test_labels[i]) < 0.5 for i in range(len(test_labels))])
