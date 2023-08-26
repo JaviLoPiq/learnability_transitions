@@ -20,6 +20,7 @@ num_RNN_units = 64
 num_RNN_units_2 = 64
 learning_rate = 1E-3
 num_epochs = 3
+batch_size = 32
 dropout=0.3
 seed_number = 1
 p_val = 2
