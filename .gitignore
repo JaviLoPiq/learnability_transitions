@@ -8,8 +8,19 @@ __pycache__
 sep_decoder/__pycache__
 plots2.py
 plots3.py
+plots4.py
+plots5.py
+plots6.py
+correlators.py 
+correlators_sep-sep.py 
+analyze_correlations.ipynb 
+analyze_correlations_proj.ipynb 
 plots_learning_complexity.py
 qiskit_data
+correlator_data
+data_Utkarsh 
+Utkarsh code 
+Weak measurements
 U1MRC_exp.py 
 RNN_decoder_tf_exp.py
 transformer_decoder_tf_exp.py
@@ -17,3 +28,7 @@ notes
 quantum_decoder_weak_results.py
 circuit_generation.py 
 Qiskit_trajectories.py
+arxiv_v1
+nn_decoders/CNN_decoder_tf.py
+nn_decoders/CNN_decoder_tf.ipynb
+nn_decoders/RNN_decoder_tf.ipynb 

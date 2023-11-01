@@ -59,8 +59,8 @@ def transfer(state_Q, T, x):
     
     return state_Q    
 
-L = 8
-Q = 4
+L = 6
+Q = L//2
 depth = L//2
 x = 2
 T = np.eye(4)
@@ -81,6 +81,7 @@ T[1,2] = 1/2
 T[2,1] = 1/2
 
 for meas in range(num_meas_outcomes): 
+    print(meas)
     for t in range(depth-1)[:]:
         
         if t%2 == 0: #even layer
